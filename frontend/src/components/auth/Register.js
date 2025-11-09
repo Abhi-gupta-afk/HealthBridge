@@ -14,7 +14,7 @@ const Register = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Registration logic will be implemented here
-    console.log('Registration attempt:', formData);
+    console.log('Registration attempt for user:', formData.username, 'email:', formData.email);
   };
 
   return (

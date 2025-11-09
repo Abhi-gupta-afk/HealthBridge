@@ -12,7 +12,7 @@ const Login = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Login logic will be implemented here
-    console.log('Login attempt:', credentials);
+    console.log('Login attempt for user:', credentials.username);
   };
 
   return (
