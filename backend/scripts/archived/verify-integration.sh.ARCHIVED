@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# HealthBridge Integration Verification Script
+
+echo "🔍 HealthBridge Integration Verification"
+echo "========================================"
+echo ""
+
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to check service health
+check_service() {
+    local service=$1
+    local port=$2
+    local url=$3
+    
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:$port$url | grep -q "200\|302\|401"; then
+        echo -e "${GREEN}✅${NC} $service (port $port) - UP"
+        return 0
+    else
+        echo -e "${RED}❌${NC} $service (port $port) - DOWN"
+        return 1
+    fi
+}
+
+# Check all services
+echo "1️⃣  Service Health Check:"
+echo "------------------------"
+check_service "Eureka Server      " 8761 "/"
+check_service "Gateway Service    " 8080 "/actuator/health" || check_service "Gateway Service    " 8080 "/"
+check_service "User Service       " 8081 "/actuator/health" || check_service "User Service       " 8081 "/"
+check_service "Appointment Service" 8082 "/actuator/health" || check_service "Appointment Service" 8082 "/"
+check_service "Notification Service" 8083 "/actuator/health" || check_service "Notification Service" 8083 "/"
+check_service "Report Service     " 8084 "/actuator/health" || check_service "Report Service     " 8084 "/"
+check_service "Payment Service    " 8085 "/actuator/health" || check_service "Payment Service    " 8085 "/"
+
+echo ""
+echo "2️⃣  Eureka Service Registry:"
+echo "-------------------------"
+EUREKA_STATUS=$(curl -s http://localhost:8761/eureka/apps | grep -o "<status>[^<]*</status>" | head -6)
+if echo "$EUREKA_STATUS" | grep -q "UP"; then
+    echo -e "${GREEN}✅${NC} Services registered in Eureka"
+    curl -s http://localhost:8761/eureka/apps | grep "<app>" | sed 's/<app>//g' | sed 's/<\/app>//g' | while read app; do
+        echo "   • $app"
+    done
+else
+    echo -e "${YELLOW}⚠️${NC}  Checking Eureka registration..."
+fi
+
+echo ""
+echo "3️⃣  Gateway Routes Verification:"
+echo "------------------------------"
+GATEWAY_ROUTES=$(curl -s http://localhost:8080/actuator/gateway/routes 2>/dev/null || echo "[]")
+if echo "$GATEWAY_ROUTES" | grep -q "userService\|appointmentService"; then
+    echo -e "${GREEN}✅${NC} Gateway routes configured"
+    echo "   • /api/auth/** → userService"
+    echo "   • /api/appointments/** → appointmentService"
+    echo "   • /api/notifications/** → notificationService"
+    echo "   • /api/reports/** → reportService"
+    echo "   • /api/payments/** → paymentService"
+else
+    echo -e "${YELLOW}⚠️${NC}  Gateway routes may still be loading..."
+fi
+
+echo ""
+echo "4️⃣  Database Connections:"
+echo "-----------------------"
+for db in healthbridge_user healthbridge_appointment healthbridge_notification healthbridge_report healthbridge_payment; do
+    if mysql -u root -pabc1234 -e "USE $db; SELECT 1;" > /dev/null 2>&1; then
+        echo -e "${GREEN}✅${NC} $db - Connected"
+    else
+        echo -e "${RED}❌${NC} $db - Connection failed"
+    fi
+done
+
+echo ""
+echo "5️⃣  Test API Endpoints:"
+echo "---------------------"
+
+# Test Gateway routing
+echo -n "Testing Gateway → User Service routing... "
+GATEWAY_TEST=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/auth/test 2>/dev/null || echo "000")
+if [ "$GATEWAY_TEST" != "000" ]; then
+    echo -e "${GREEN}✅ Gateway routing works${NC}"
+else
+    echo -e "${YELLOW}⚠️  Gateway may still be starting${NC}"
+fi
+
+echo ""
+echo "========================================"
+echo "🎉 Verification Complete!"
+echo ""
+echo "📊 Access Points:"
+echo "   • Eureka Dashboard: http://localhost:8761"
+echo "   • API Gateway:      http://localhost:8080"
+echo ""
+echo "💡 Quick Test Commands:"
+echo '   curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '"'"'{"username":"test","password":"test"}'"'"
+echo '   curl http://localhost:8761'
+echo ""

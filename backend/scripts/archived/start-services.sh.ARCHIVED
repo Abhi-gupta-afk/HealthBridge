@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# HealthBridge Microservices Startup Script
+echo "=============================================="
+echo "🏥 HealthBridge Microservices Startup"
+echo "=============================================="
+
+# Check if Maven is installed
+if ! command -v mvn &> /dev/null; then
+    echo "❌ Maven is not installed. Please install Maven first."
+    exit 1
+fi
+
+# Check if MySQL is running
+if ! mysqladmin ping -h localhost --silent; then
+    echo "⚠️  MySQL is not running. Please start MySQL first."
+    echo "   Database: healthbridge_*"
+    echo "   Username: root"
+    echo "   Password: abc1234"
+    exit 1
+fi
+
+echo "✅ Prerequisites checked"
+echo ""
+
+# Navigate to backend directory
+cd "$(dirname "$0")"
+
+# Function to start a service
+start_service() {
+    SERVICE_NAME=$1
+    SERVICE_PORT=$2
+    SERVICE_DIR=$3
+    
+    echo "🚀 Starting $SERVICE_NAME on port $SERVICE_PORT..."
+    
+    cd "$SERVICE_DIR"
+    
+    # Clean and build
+    mvn clean install -DskipTests > /dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        # Start service in background
+        mvn spring-boot:run > "../logs/${SERVICE_NAME}.log" 2>&1 &
+        echo "   ✅ $SERVICE_NAME started (PID: $!)"
+    else
+        echo "   ❌ Failed to build $SERVICE_NAME"
+    fi
+    
+    cd ..
+}
+
+# Create logs directory
+mkdir -p logs
+
+# Start services in order
+echo "Starting services..."
+echo ""
+
+# 1. Eureka Server (Service Discovery)
+start_service "Eureka-Server" 8761 "eureka-server"
+sleep 15
+
+# 2. Gateway Service (API Gateway)
+start_service "Gateway-Service" 8080 "gateway-service"
+sleep 10
+
+# 3. User Service
+start_service "User-Service" 8081 "user-service"
+sleep 10
+
+# 4. Appointment Service
+start_service "Appointment-Service" 8082 "appointment-service"
+sleep 10
+
+# 5. Notification Service
+start_service "Notification-Service" 8083 "notification-service"
+sleep 10
+
+# 6. Report Service
+start_service "Report-Service" 8084 "report-service"
+sleep 10
+
+# 7. Payment Service
+start_service "Payment-Service" 8085 "payment-service"
+sleep 10
+
+echo ""
+echo "=============================================="
+echo "✅ All services started!"
+echo "=============================================="
+echo ""
+echo "Service URLs:"
+echo "  🔍 Eureka Dashboard:  http://localhost:8761"
+echo "  🌐 API Gateway:       http://localhost:8080"
+echo "  👤 User Service:      http://localhost:8081"
+echo "  📅 Appointment:       http://localhost:8082"
+echo "  📧 Notification:      http://localhost:8083"
+echo "  📊 Report:            http://localhost:8084"
+echo "  💳 Payment:           http://localhost:8085"
+echo ""
+echo "Swagger UI:"
+echo "  Gateway:     http://localhost:8080/swagger-ui.html"
+echo "  User:        http://localhost:8081/swagger-ui.html"
+echo "  Appointment: http://localhost:8082/swagger-ui.html"
+echo "  Notification: http://localhost:8083/swagger-ui.html"
+echo "  Report:      http://localhost:8084/swagger-ui.html"
+echo "  Payment:     http://localhost:8085/swagger-ui.html"
+echo ""
+echo "Logs are available in: backend/logs/"
+echo ""
+echo "To stop all services, run: ./stop-all.sh"
+echo "=============================================="

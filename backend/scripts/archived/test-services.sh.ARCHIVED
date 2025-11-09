@@ -1,0 +1,107 @@
+#!/bin/bash
+
+echo "=== Starting All Services ==="
+
+cd eurekaServer
+bash mvnw spring-boot:run > ../logs/eureka.log 2>&1 &
+cd ..
+
+sleep 25
+
+cd gatewayService
+bash mvnw spring-boot:run > ../logs/gateway.log 2>&1 &
+cd ..
+
+sleep 5
+
+cd userService
+bash mvnw spring-boot:run > ../logs/user.log 2>&1 &
+cd ..
+
+cd appointmentService
+bash mvnw spring-boot:run > ../logs/appointment.log 2>&1 &
+cd ..
+
+cd notificationService
+bash mvnw spring-boot:run > ../logs/notification.log 2>&1 &
+cd ..
+
+cd reportService
+bash mvnw spring-boot:run > ../logs/report.log 2>&1 &
+cd ..
+
+cd paymentService
+bash mvnw spring-boot:run > ../logs/payment.log 2>&1 &
+cd ..
+
+echo "Waiting for services to start..."
+sleep 90
+
+echo ""
+echo "=== Testing Eureka Server ==="
+curl -s http://localhost:8761/eureka/apps | grep -o "<application>" | wc -l
+
+echo ""
+echo "=== Testing User Service - Register ==="
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Integration Test User","email":"integrate@healthbridge.com","password":"secure123","roles":"PATIENT"}'
+
+echo ""
+echo ""
+echo "=== Testing User Service - Login ==="
+TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"integrate@healthbridge.com","password":"secure123"}')
+echo $TOKEN_RESPONSE
+
+TOKEN=$(echo $TOKEN_RESPONSE | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+if [ -z "$TOKEN" ]; then
+  echo "ERROR: Failed to get token"
+else
+  echo ""
+  echo "=== Testing Appointment Service - Create ==="
+  curl -X POST "http://localhost:8080/api/appointments/book?userId=1&doctorName=Dr.%20Smith&appointmentDate=2025-10-25T10:00:00" \
+    -H "Authorization: Bearer $TOKEN"
+
+  echo ""
+  echo ""
+  echo "=== Testing Appointment Service - Get All ==="
+  curl -s "http://localhost:8080/api/appointments/user/1" \
+    -H "Authorization: Bearer $TOKEN"
+
+  echo ""
+  echo ""
+  echo "=== Testing Payment Service - Process ==="
+  curl -X POST "http://localhost:8080/api/payments/process?userId=1&amount=500.00" \
+    -H "Authorization: Bearer $TOKEN"
+
+  echo ""
+  echo ""
+  echo "=== Testing Payment Service - Get All ==="
+  curl -s "http://localhost:8080/api/payments/all" \
+    -H "Authorization: Bearer $TOKEN"
+
+  echo ""
+  echo ""
+  echo "=== Testing Notification Service - Send ==="
+  curl -X POST http://localhost:8080/api/notifications/send \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $TOKEN" \
+    -d '{"email":"test@test.com","message":"Test notification"}'
+fi
+
+echo ""
+echo ""
+echo "=== Registered Services in Eureka ==="
+curl -s http://localhost:8761/eureka/apps | grep -o "<name>[^<]*" | sed 's/<name>//'
+
+echo ""
+echo ""
+echo "=== Cleaning up ==="
+killall java 2>/dev/null
+pkill -f "spring-boot:run" 2>/dev/null
+
+echo ""
+echo "✅ Backend Verified"

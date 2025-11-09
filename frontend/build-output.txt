@@ -1,0 +1,16 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/pages/Appointments.tsx(41,23): error TS2345: Argument of type 'Appointment[]' is not assignable to parameter of type 'SetStateAction<Appointment[]>'.
+  Type 'import("D:/Healthbridge/frontend/src/services/appointmentService").Appointment[]' is not assignable to type 'Appointment[]'.
+    Type 'Appointment' is missing the following properties from type 'Appointment': patientId, doctorId, appointmentTime, reason
+src/pages/Notifications.tsx(38,24): error TS2345: Argument of type 'Notification[]' is not assignable to parameter of type 'SetStateAction<Notification[]>'.
+  Type 'import("D:/Healthbridge/frontend/src/services/notificationService").Notification[]' is not assignable to type 'Notification[]'.
+    Type 'Notification' is missing the following properties from type 'Notification': userId, createdAt
+src/pages/Payments.tsx(37,19): error TS2345: Argument of type 'Payment[]' is not assignable to parameter of type 'SetStateAction<Payment[]>'.
+  Type 'import("D:/Healthbridge/frontend/src/services/paymentService").Payment[]' is not assignable to type 'Payment[]'.
+    Property 'paymentMethod' is missing in type 'import("D:/Healthbridge/frontend/src/services/paymentService").Payment' but required in type 'Payment'.
+src/pages/Reports.tsx(37,18): error TS2345: Argument of type 'Report[]' is not assignable to parameter of type 'SetStateAction<Report[]>'.
+  Type 'import("D:/Healthbridge/frontend/src/services/reportService").Report[]' is not assignable to type 'Report[]'.
+    Property 'reportDate' is missing in type 'import("D:/Healthbridge/frontend/src/services/reportService").Report' but required in type 'Report'.
